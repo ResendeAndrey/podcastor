@@ -1,9 +1,9 @@
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useRouter } from 'next/router'
 import { GetStaticPaths, GetStaticProps } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from  'next/router'
 import api from '../../services/api';
 import { convertDurationToTimeString } from '../../utils/convertDurantionToTimeString';
 
@@ -25,8 +25,11 @@ type slugEpisodes ={
 }
 
 export default function Episode({ episode } : slugEpisodes) {
-  console.log(episode)
+  
+
+ 
   return (
+    
    <div className={styles.episode}>
      <div className={styles.thumbnailContainer}>
        <Link href="/">
@@ -54,8 +57,23 @@ export default function Episode({ episode } : slugEpisodes) {
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
+  const { data } = await api.get(`/episodes/`, {
+    params: {
+      _limit: 2,
+      _sort: 'published_at',
+      order: 'desc'
+    }
+  })
+  
+  const paths = data.map(episode => {
+    return {
+      params: {
+        slug: episode.id
+      }
+    }
+  })
   return {
-    paths: [],
+    paths,
     fallback: 'blocking'
   }
 }
@@ -83,3 +101,5 @@ export const getStaticProps: GetStaticProps = async (ctx) => {
     revalidate: 60 * 60 * 24 //24 hours
   }
 }
+
+
