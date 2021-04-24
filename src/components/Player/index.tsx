@@ -1,24 +1,53 @@
 import Image from 'next/image';
-import React, { useContext, useEffect, useRef } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { PlayerContext } from '../../context/playerContext';
 import Slider from 'rc-slider'
 import 'rc-slider/assets/index.css'
 
 import styles from './styles.module.scss'
+import { convertDurationToTimeString } from '../../utils/convertDurantionToTimeString';
 
 const Player: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
-
+  const [progress, setProgress] = useState(0)
   const { 
     episodeList, 
     currentEpisodeIndex, 
     isPlaying,
+    isLooping,
+    isShuffling,
+    toggleLoop,
     togglePlay,
-    setPlayingState
+    toggleShuffle,
+    setPlayingState,
+    playNext,
+    playPrevious,
+    hasNext,
+    hasPrevious,
+    clearPlayerState
   } = useContext(PlayerContext)
   
   const episode = episodeList[currentEpisodeIndex] 
 
+  function setUpProgressListening() {
+    audioRef.current.currentTime = 0;
+    audioRef.current.addEventListener('timeupdate', () => {
+      setProgress(Math.floor(audioRef.current.currentTime))
+    })
+  }
+
+  function handleSeek(amount: number) {
+    audioRef.current.currentTime = amount
+    setProgress(amount)
+  }
+  function handleEpisodeEnded() {
+    if(hasNext) {
+      playNext()
+    } else {
+      clearPlayerState()
+    }
+  }
+  
   useEffect(() => {
     if(!audioRef.current) {
       return ;
@@ -51,20 +80,23 @@ const Player: React.FC = () => {
 
     <footer className={!episode && styles.empty}>
     <div className={styles.progress}>
-      <span>00:00</span>
+      <span>{convertDurationToTimeString(progress)}</span>
       <div className={styles.slider}>
       {episode ? (
         <Slider 
           trackStyle={{backgroundColor: '#04d361'}}
           railStyle={{backgroundColor: '#9f75ff'}}
           handleStyle={{borderColor: '#04d361', borderWidth: 4}}
+          max={episode.duration}
+          value={progress}
+          onChange={handleSeek}
         />
       ): (
 
       <div className={styles.emptySlider} />
       )}
       </div>
-      <span>00:00</span>
+      <span>{convertDurationToTimeString(episode?.duration ?? 0)}</span>
     </div>
     {episode && (
       <audio 
@@ -73,14 +105,21 @@ const Player: React.FC = () => {
         ref={audioRef}
         onPlay={() => setPlayingState(true)}
         onPause={() => setPlayingState(false)}
-        
+        loop={isLooping}
+        onLoadedMetadata={setUpProgressListening}
+        onEnded={handleEpisodeEnded}
         />  
     )}
     <div className={styles.buttons}>
-      <button type="button" disabled={!episode}>
+      <button 
+        type="button" 
+        disabled={!episode || episodeList.length === 1}
+        onClick={toggleShuffle}
+        className={isShuffling && styles.isActive}
+        >
         <img src="/shuffle.svg" alt="Embaralhar" />
       </button>
-      <button type="button" disabled={!episode}>
+      <button type="button" disabled={!episode || !hasPrevious} onClick={playPrevious}>
         <img src="/play-previous.svg" alt="Tocar anterior." />
       </button>
       <button 
@@ -91,10 +130,15 @@ const Player: React.FC = () => {
       >
         <img src={isPlaying ? "/pause.svg" : "/play.svg"} alt="Tocar." />
       </button>
-      <button type="button" disabled={!episode}>
+      <button type="button" disabled={!episode || !hasNext} onClick={playNext}>
         <img src="/play-next.svg" alt="Tocar próxima" />
       </button>
-      <button type="button" disabled={!episode}>
+      <button 
+        type="button" 
+        disabled={!episode} 
+        onClick={toggleLoop}
+        className={isLooping && styles.isActive}
+        >
         <img src="/repeat.svg" alt="Repetir." />
       </button>
     </div>
